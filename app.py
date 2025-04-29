@@ -18,11 +18,11 @@ OB_POR_PROVEEDOR = {
 }
 # --- ARTÍCULOS ---
 articulos = [
-   {"Nº artículo": "1009250", "Descripción": "1009250 Mostradores Mahou 2025 (ROJO ESTRELLAS)"},
-   {"Nº artículo": "1009248", "Descripción": "1009248 Mostradores ALH 2025 (VERDE)"},
-   {"Nº artículo": "1003102", "Descripción": "1003102 Mostradores Mahou 2024 (ROJO)"},
-   {"Nº artículo": "1001727", "Descripción": "1001727 Mostradores SM 2024 (VERDE)"},
-   {"Nº artículo": "1000511", "Descripción": "1000511 Mostradores ALH 2024 (GRIS)"}
+   {"Nº artículo": "1009250", "Descripción": "1009250 Mostradores Mahou 2025 (ROJO ESTRELLAS)", "limite": 1000, "multiplo": 10},
+   {"Nº artículo": "1009248", "Descripción": "1009248 Mostradores ALH 2025 (VERDE)", "limite": 1000, "multiplo": 10},
+   {"Nº artículo": "1003102", "Descripción": "1003102 Mostradores Mahou 2024 (ROJO)", "limite": 1000, "multiplo": 10},
+   {"Nº artículo": "1001727", "Descripción": "1001727 Mostradores SM 2024 (VERDE)", "limite": 500, "multiplo": 10},
+   {"Nº artículo": "1000511", "Descripción": "1000511 Mostradores ALH 2024 (GRIS)", "limite": 500, "multiplo": 10}
 ]
 # --- PROVEEDORES ---
 proveedor_opciones = {
@@ -61,7 +61,10 @@ pedido = []
 for articulo in articulos:
    codigo = articulo["Nº artículo"]
    descripcion = articulo["Descripción"]
-   cantidad = st.number_input(f"{descripcion}:", min_value=0, max_value=1000, step=10, value=0)
+   limite = articulo["limite"]
+   multiplo = articulo["multiplo"]
+   # Validación de la cantidad según el límite y el múltiplo
+   cantidad = st.number_input(f"{descripcion}:", min_value=0, max_value=limite, step=multiplo, value=0)
    if cantidad > 0:
        pedido.append({
            "Fecha solicitud": datetime.date.today(),
