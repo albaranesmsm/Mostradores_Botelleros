@@ -6,17 +6,20 @@ from email.message import EmailMessage
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.workbook.protection import WorkbookProtection
+import os
+# --- CONFIGURACIÓN SMTP ---
+smtp_user = os.getenv("SMTP_USER")
+smtp_pass = os.getenv("SMTP_PASS")
 # --- DATOS FIJOS ---
 COMPRADOR = "612539"
-# --- RELACIÓN ARTÍCULOS Y LM AUX ---
-lm_aux_por_articulo = {
+OB_POR_ARTICULO = {
    "1009250": "24341155",
    "1009248": "24341161",
    "1003102": "24341155",
    "1001727": "24341159",
    "1000511": "24341161"
 }
-# --- LISTADO DE ARTÍCULOS ---
+# --- ARTÍCULOS ---
 articulos = [
    {"Nº artículo": "1009250", "Descripción": "1009250 Mostradores Mahou 2025 (ROJO ESTRELLAS)"},
    {"Nº artículo": "1009248", "Descripción": "1009248 Mostradores ALH 2025 (VERDE)"},
@@ -24,15 +27,14 @@ articulos = [
    {"Nº artículo": "1001727", "Descripción": "1001727 Mostradores SM 2024 (VERDE)"},
    {"Nº artículo": "1000511", "Descripción": "1000511 Mostradores ALH 2024 (GRIS)"}
 ]
-# --- RESTRICCIONES POR ARTÍCULO ---
-restricciones = {
-   "1600043": {"multiplo": 10, "max": 1000},
-   "1600050": {"multiplo": 10, "max": 1000},
-   "1600051": {"multiplo": 10, "max": 1000},
-   "1600052": {"multiplo": 10, "max": 1000},
-   "1600053": {"multiplo": 10, "max": 1000}
+# --- PROVEEDORES ---
+proveedor_opciones = {
+   "Efficold": "10573",
+   "Docriluc": "1083828"
 }
-# --- RELACIÓN DIRECCIONES DE ENTREGA ---
+proveedor_nombre = st.selectbox("Selecciona el proveedor:", list(proveedor_opciones.keys()))
+proveedor_codigo = proveedor_opciones[proveedor_nombre]
+# --- DIRECCIONES DE ENTREGA ---
 destinos = {
    "CHAMANSER": "8751",
    "FEDUVIR": "8251",
@@ -41,53 +43,40 @@ destinos = {
    "ECESA LEVANTE": "8255",
    "SILESTEC": "8005",
    "9VIPESET": "8071",
-   "OTRO DESTINO": ""
+   "OTRO DESTINO": None
 }
-# --- RELACIÓN PROVEEDORES ---
-proveedores_disponibles = {
-   "Efficold": "10573",
-   "Docriluc": "1083828"
-}
-# --- INTERFAZ ---
 st.title("PETICION DE MOSTRADORES Y BOTELLEROS")
-# --- Dirección de entrega ---
-destino_seleccionado = st.selectbox("Selecciona Dirección de Entrega:", list(destinos.keys()))
+destino_seleccionado = st.selectbox("Selecciona el destino:", list(destinos.keys()))
 if destino_seleccionado == "OTRO DESTINO":
-   dir_entrega = st.text_input("Introduce manualmente un código de Dirección de Entrega (4 cifras empezando por 8):", max_chars=4)
-   if not dir_entrega or not (dir_entrega.isdigit() and len(dir_entrega) == 4 and dir_entrega.startswith("8")):
-       st.error("Debe introducir un código de 4 cifras que empiece por 8")
+   codigo_entrega = st.text_input("Introduce un código de entrega (4 cifras, empieza por 8):")
+   if not (codigo_entrega and codigo_entrega.isdigit() and len(codigo_entrega) == 4 and codigo_entrega.startswith("8")):
+       st.error("Código no válido")
        st.stop()
 else:
-   dir_entrega = destinos[destino_seleccionado]
-# --- Selección de proveedor general para el pedido ---
-proveedor_seleccionado = st.selectbox("Selecciona el Proveedor:", list(proveedores_disponibles.keys()))
-codigo_proveedor = proveedores_disponibles[proveedor_seleccionado]
+   codigo_entrega = destinos[destino_seleccionado]
+# --- PEDIDO ---
 st.subheader("Selecciona las cantidades:")
 pedido = []
 for articulo in articulos:
-   codigo = str(articulo["Nº artículo"])
+   codigo = articulo["Nº artículo"]
    descripcion = articulo["Descripción"]
-   maximo = restricciones.get(codigo, {}).get("max", 1000)
-   multiplo = restricciones.get(codigo, {}).get("multiplo", 1)
-   cantidad = st.number_input(
-       f"{descripcion} (Múltiplo: {multiplo}, Máx: {maximo})",
-       min_value=0, max_value=maximo, step=multiplo, value=0,
-   )
+   ob = OB_POR_ARTICULO.get(codigo)
+   cantidad = st.number_input(f"{descripcion}:", min_value=0, step=1, value=0)
    if cantidad > 0:
        pedido.append({
            "Fecha solicitud": datetime.date.today(),
-           "OB": lm_aux_por_articulo[codigo],
+           "OB": ob,
            "Comprador": COMPRADOR,
-           "LM aux": lm_aux_por_articulo[codigo],
-           "Cód Prov": codigo_proveedor,
-           "Proveedor": proveedor_seleccionado,
+           "LM aux": ob,
+           "Cód Prov": proveedor_codigo,
+           "Proveedor": proveedor_nombre,
            "Suc/planta": 8040,
-           "Dir entr": dir_entrega,
+           "Dir entr": codigo_entrega,
            "Nº artículo": codigo,
            "Descripción": descripcion,
            "Autorizar cant": cantidad,
        })
-# --- Excel protegido ---
+# --- EXCEL ---
 def crear_excel_protegido(df):
    wb = Workbook()
    ws = wb.active
@@ -95,32 +84,29 @@ def crear_excel_protegido(df):
    for _, row in df.iterrows():
        ws.append(row.tolist())
    wb.security = WorkbookProtection(workbookPassword="NESTARES_24", lockStructure=True)
-   # Guardar en BytesIO
-   excel_buffer = BytesIO()
-   wb.save(excel_buffer)
-   excel_buffer.seek(0)
-   return excel_buffer
-# --- Envío de correo ---
+   output = BytesIO()
+   wb.save(output)
+   output.seek(0)
+   return output.read()
+# --- CORREO ---
 def enviar_correo(destinatario, asunto, adjunto_bytes):
    msg = EmailMessage()
    msg["Subject"] = asunto
-   msg["From"] = "pedidosmaterialesmsm@gmail.com"
+   msg["From"] = smtp_user
    msg["To"] = destinatario
    msg.set_content("Adjunto encontrarás el archivo de pedido.")
-   msg.add_attachment(adjunto_bytes, maintype='application', subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename="pedido_materiales.xlsx")
-   with smtplib.SMTP("smtp.gmail.com", 587) as server:
+   msg.add_attachment(adjunto_bytes, maintype="application", subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename="pedido_materiales.xlsx")
+   with smtplib.SMTP("relay.brevo.com", 587) as server:
        server.starttls()
-       server.login("pedidosmaterialesmsm@gmail.com", "iquiuslwxribewal")
+       server.login(smtp_user, smtp_pass)
        server.send_message(msg)
-# --- Botón de generación ---
-if st.button("Generar Pedido"):
-   if pedido:
-       df = pd.DataFrame(pedido)
-       excel_bytes = crear_excel_protegido(df)
-       st.success("Pedido generado correctamente.")
-       st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
-       if st.button("Enviar Pedido por Email"):
-           enviar_correo("dvictoresg@mahou-sanmiguel.com", "Pedido de Materiales", excel_bytes.getvalue())
-           st.success("Correo enviado correctamente.")
-   else:
-       st.warning("No se ha seleccionado ningún artículo.")
+# --- ACCIONES ---
+if st.button("Generar y Enviar Pedido"):
+   if not pedido:
+       st.warning("No has seleccionado ninguna cantidad.")
+       st.stop()
+   df = pd.DataFrame(pedido)
+   excel_bytes = crear_excel_protegido(df)
+   enviar_correo("dvictoresg@mahou-sanmiguel.com", "Pedido de Materiales", excel_bytes)
+   st.success("Correo enviado correctamente.")
+   st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
