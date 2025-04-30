@@ -98,8 +98,9 @@ def enviar_correo(destinatario, asunto, adjunto_bytes):
        msg["To"] = destinatario
        msg.set_content("Adjunto encontrarás el archivo de pedido.")
        msg.add_attachment(adjunto_bytes, maintype="application", subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename="pedido_materiales.xlsx")
-       with smtplib.SMTP("mail.smtp2go.com", 587) as server:
-           server.starttls()
+       # Conectar al servidor SMTP de Brevo
+       with smtplib.SMTP("smtp-relay.brevo.com", 587) as server:
+           server.starttls()  # Iniciar la conexión segura
            server.login(smtp_user, smtp_pass)
            server.send_message(msg)
        return True
