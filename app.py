@@ -1,21 +1,20 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import smtplib
-from email.message import EmailMessage
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.workbook.protection import WorkbookProtection
-# --- CONFIGURACIÓN SMTP DESDE SECRETS ---
-smtp_user = st.secrets["SMTP_USER"]
-smtp_pass = st.secrets["SMTP_PASS"]
+import base64
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
+# --- CONFIGURACIÓN BREVO API ---
+api_key = st.secrets["BREVO"]["API_KEY"]
 # --- CONSTANTES ---
 COMPRADOR = "612539"
 OB_POR_PROVEEDOR = {
    "Efficold": "31005315",
    "Docriluc": "31005264"
 }
-# --- ARTÍCULOS ---
 articulos = [
    {"Nº artículo": "1009250", "Descripción": "1009250 Mostradores Mahou 2025 (ROJO ESTRELLAS)", "limite": 1000, "multiplo": 10},
    {"Nº artículo": "1009248", "Descripción": "1009248 Mostradores ALH 2025 (VERDE)", "limite": 1000, "multiplo": 10},
@@ -23,12 +22,10 @@ articulos = [
    {"Nº artículo": "1001727", "Descripción": "1001727 Mostradores SM 2024 (VERDE)", "limite": 500, "multiplo": 10},
    {"Nº artículo": "1000511", "Descripción": "1000511 Mostradores ALH 2024 (GRIS)", "limite": 500, "multiplo": 10}
 ]
-# --- PROVEEDORES ---
 proveedor_opciones = {
    "Efficold": "10573",
    "Docriluc": "1083828"
 }
-# --- DESTINOS ---
 destinos = {
    "CHAMANSER": "8751",
    "FEDUVIR": "8251",
@@ -89,31 +86,35 @@ def crear_excel_protegido(df):
    wb.save(output)
    output.seek(0)
    return output.read()
-# Enviar correo con manejo de errores
+# Enviar correo con Brevo API
 def enviar_correo(destinatario, asunto, adjunto_bytes):
+   configuration = sib_api_v3_sdk.Configuration()
+   configuration.api_key['api-key'] = api_key
+   api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+   adjunto_b64 = base64.b64encode(adjunto_bytes).decode()
+   email = sib_api_v3_sdk.SendSmtpEmail(
+       to=[{"email": destinatario}],
+       sender={"name": "App Pedidos", "email": "pedidosmaterialmsm@gmail.com"},  # Email verificado en Brevo
+       subject=asunto,
+       html_content="<p>Adjunto encontrarás el archivo de pedido.</p>",
+       attachment=[{
+           "content": adjunto_b64,
+           "name": "pedido_materiales.xlsx"
+       }]
+   )
    try:
-       msg = EmailMessage()
-       msg["Subject"] = asunto
-       msg["From"] = smtp_user
-       msg["To"] = destinatario
-       msg.set_content("Adjunto encontrarás el archivo de pedido.")
-       msg.add_attachment(adjunto_bytes, maintype="application", subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename="pedido_materiales.xlsx")
-       # Conectar al servidor SMTP de Brevo
-       with smtplib.SMTP("smtp-relay.brevo.com", 587) as server:
-           server.starttls()  # Iniciar la conexión segura
-           server.login(smtp_user, smtp_pass)
-           server.send_message(msg)
+       api_instance.send_transac_email(email)
        return True
-   except Exception as e:
-       st.error(f"Error al enviar el correo: {e}")
+   except ApiException as e:
+       st.error(f"Error al enviar correo: {e}")
        return False
-# Acciones finales
+# Botón de acción final
 if st.button("Generar y Enviar Pedido"):
    if not pedido:
        st.warning("No has seleccionado ninguna cantidad.")
        st.stop()
    df = pd.DataFrame(pedido)
    excel_bytes = crear_excel_protegido(df)
-   if enviar_correo("davidvictores@hotmail.com", "Pedido de Materiales", excel_bytes):
+   if enviar_correo("dvictoresg@mahou-sanmiguel.com", "Pedido de Materiales", excel_bytes):
        st.success("Correo enviado correctamente.")
        st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
