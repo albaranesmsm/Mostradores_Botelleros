@@ -114,6 +114,6 @@ if st.button("Generar y Enviar Pedido"):
        st.stop()
    df = pd.DataFrame(pedido)
    excel_bytes = crear_excel_protegido(df)
-   if enviar_correo("davidvictoresg@hotmail.com", "Pedido de Materiales", excel_bytes):
+   if enviar_correo("davidvictores@hotmail.com", "Pedido de Materiales", excel_bytes):
        st.success("Correo enviado correctamente.")
        st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
