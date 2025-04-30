@@ -6,7 +6,6 @@ from email.message import EmailMessage
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.workbook.protection import WorkbookProtection
-import os
 # --- CONFIGURACIÓN SMTP DESDE SECRETS ---
 smtp_user = st.secrets["SMTP_USER"]
 smtp_pass = st.secrets["SMTP_PASS"]
@@ -18,11 +17,11 @@ OB_POR_PROVEEDOR = {
 }
 # --- ARTÍCULOS ---
 articulos = [
-   {"Nº artículo": "1009250", "Descripción": "1009250 Mostradores Mahou 2025 (ROJO ESTRELLAS)", "limite": 1000, "multiplo": 1},
-   {"Nº artículo": "1009248", "Descripción": "1009248 Mostradores ALH 2025 (VERDE)", "limite": 1000, "multiplo": 1},
-   {"Nº artículo": "1003102", "Descripción": "1003102 Mostradores Mahou 2024 (ROJO)", "limite": 1000, "multiplo": 1},
-   {"Nº artículo": "1001727", "Descripción": "1001727 Mostradores SM 2024 (VERDE)", "limite": 500, "multiplo": 1},
-   {"Nº artículo": "1000511", "Descripción": "1000511 Mostradores ALH 2024 (GRIS)", "limite": 500, "multiplo": 1}
+   {"Nº artículo": "1009250", "Descripción": "1009250 Mostradores Mahou 2025 (ROJO ESTRELLAS)", "limite": 1000, "multiplo": 10},
+   {"Nº artículo": "1009248", "Descripción": "1009248 Mostradores ALH 2025 (VERDE)", "limite": 1000, "multiplo": 10},
+   {"Nº artículo": "1003102", "Descripción": "1003102 Mostradores Mahou 2024 (ROJO)", "limite": 1000, "multiplo": 10},
+   {"Nº artículo": "1001727", "Descripción": "1001727 Mostradores SM 2024 (VERDE)", "limite": 500, "multiplo": 10},
+   {"Nº artículo": "1000511", "Descripción": "1000511 Mostradores ALH 2024 (GRIS)", "limite": 500, "multiplo": 10}
 ]
 # --- PROVEEDORES ---
 proveedor_opciones = {
@@ -90,18 +89,23 @@ def crear_excel_protegido(df):
    wb.save(output)
    output.seek(0)
    return output.read()
-# Enviar correo
+# Enviar correo con manejo de errores
 def enviar_correo(destinatario, asunto, adjunto_bytes):
-   msg = EmailMessage()
-   msg["Subject"] = asunto
-   msg["From"] = smtp_user
-   msg["To"] = destinatario
-   msg.set_content("Adjunto encontrarás el archivo de pedido.")
-   msg.add_attachment(adjunto_bytes, maintype="application", subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename="pedido_materiales.xlsx")
-   with smtplib.SMTP("relay.brevo.com", 587) as server:
-       server.starttls()
-       server.login(smtp_user, smtp_pass)
-       server.send_message(msg)
+   try:
+       msg = EmailMessage()
+       msg["Subject"] = asunto
+       msg["From"] = smtp_user
+       msg["To"] = destinatario
+       msg.set_content("Adjunto encontrarás el archivo de pedido.")
+       msg.add_attachment(adjunto_bytes, maintype="application", subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename="pedido_materiales.xlsx")
+       with smtplib.SMTP("mail.smtp2go.com", 587) as server:
+           server.starttls()
+           server.login(smtp_user, smtp_pass)
+           server.send_message(msg)
+       return True
+   except Exception as e:
+       st.error(f"Error al enviar el correo: {e}")
+       return False
 # Acciones finales
 if st.button("Generar y Enviar Pedido"):
    if not pedido:
@@ -109,10 +113,6 @@ if st.button("Generar y Enviar Pedido"):
        st.stop()
    df = pd.DataFrame(pedido)
    excel_bytes = crear_excel_protegido(df)
-   try:
-       enviar_correo("dvictoresg@mahou-sanmiguel.com", "Pedido de Materiales", excel_bytes)
+   if enviar_correo("dvictoresg@mahou-sanmiguel.com", "Pedido de Materiales", excel_bytes):
        st.success("Correo enviado correctamente.")
-   except Exception as e:
-       st.error(f"Error al enviar el correo: {e}")
-       st.stop()
-   st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
+       st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
