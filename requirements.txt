@@ -1,3 +1,4 @@
 pandas
 streamlit
 openpyxl
+sib-api-v3-sdk
