@@ -18,11 +18,11 @@ OB_POR_PROVEEDOR = {
 }
 # --- ARTÍCULOS ---
 articulos = [
-   {"Nº artículo": "1009250", "Descripción": "1009250 Mostradores Mahou 2025 (ROJO ESTRELLAS)", "limite": 1000, "multiplo": 10},
-   {"Nº artículo": "1009248", "Descripción": "1009248 Mostradores ALH 2025 (VERDE)", "limite": 1000, "multiplo": 10},
-   {"Nº artículo": "1003102", "Descripción": "1003102 Mostradores Mahou 2024 (ROJO)", "limite": 1000, "multiplo": 10},
-   {"Nº artículo": "1001727", "Descripción": "1001727 Mostradores SM 2024 (VERDE)", "limite": 500, "multiplo": 10},
-   {"Nº artículo": "1000511", "Descripción": "1000511 Mostradores ALH 2024 (GRIS)", "limite": 500, "multiplo": 10}
+   {"Nº artículo": "1009250", "Descripción": "1009250 Mostradores Mahou 2025 (ROJO ESTRELLAS)", "limite": 1000, "multiplo": 1},
+   {"Nº artículo": "1009248", "Descripción": "1009248 Mostradores ALH 2025 (VERDE)", "limite": 1000, "multiplo": 1},
+   {"Nº artículo": "1003102", "Descripción": "1003102 Mostradores Mahou 2024 (ROJO)", "limite": 1000, "multiplo": 1},
+   {"Nº artículo": "1001727", "Descripción": "1001727 Mostradores SM 2024 (VERDE)", "limite": 500, "multiplo": 1},
+   {"Nº artículo": "1000511", "Descripción": "1000511 Mostradores ALH 2024 (GRIS)", "limite": 500, "multiplo": 1}
 ]
 # --- PROVEEDORES ---
 proveedor_opciones = {
@@ -63,7 +63,6 @@ for articulo in articulos:
    descripcion = articulo["Descripción"]
    limite = articulo["limite"]
    multiplo = articulo["multiplo"]
-   # Validación de la cantidad según el límite y el múltiplo
    cantidad = st.number_input(f"{descripcion}:", min_value=0, max_value=limite, step=multiplo, value=0)
    if cantidad > 0:
        pedido.append({
@@ -110,6 +109,10 @@ if st.button("Generar y Enviar Pedido"):
        st.stop()
    df = pd.DataFrame(pedido)
    excel_bytes = crear_excel_protegido(df)
-   enviar_correo("dvictoresg@mahou-sanmiguel.com", "Pedido de Materiales", excel_bytes)
-   st.success("Correo enviado correctamente.")
+   try:
+       enviar_correo("dvictoresg@mahou-sanmiguel.com", "Pedido de Materiales", excel_bytes)
+       st.success("Correo enviado correctamente.")
+   except Exception as e:
+       st.error(f"Error al enviar el correo: {e}")
+       st.stop()
    st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
