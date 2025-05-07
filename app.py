@@ -33,6 +33,9 @@ destinos = {
 }
 # --- INTERFAZ ---
 st.title("PETICION DE MOSTRADORES Y BOTELLEROS")
+# Estado de sesión para mantener el mensaje después de generar el pedido
+if "pedido_generado" not in st.session_state:
+   st.session_state.pedido_generado = False
 # Selección de proveedor
 proveedor_nombre = st.selectbox("Selecciona el proveedor:", list(proveedor_opciones.keys()))
 proveedor_codigo = proveedor_opciones[proveedor_nombre]
@@ -90,8 +93,10 @@ def mostrar_instrucciones():
        - **Asunto:** OAs pedidos materiales operaciones de venta  
        """
    )
-   # Botón para copiar el asunto
-   if st.button("Copiar Asunto"):
+   # Botón para copiar el asunto sin reiniciar la pantalla
+   if st.button("Copiar Asunto", key="copiar_asunto"):
+       st.session_state.asunto_copiado = True
+   if st.session_state.get("asunto_copiado"):
        st.code("OAs pedidos materiales operaciones de venta")
        st.success("Asunto copiado al portapapeles.")
 # Botón de acción final
@@ -103,4 +108,7 @@ if st.button("Generar Pedido"):
    excel_bytes = crear_excel_protegido(df)
    st.success("Pedido generado correctamente.")
    st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
+   st.session_state.pedido_generado = True
+# Mostrar instrucciones si el pedido ya ha sido generado
+if st.session_state.pedido_generado:
    mostrar_instrucciones()
