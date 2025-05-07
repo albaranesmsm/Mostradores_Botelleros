@@ -81,6 +81,19 @@ def crear_excel_protegido(df):
    wb.save(output)
    output.seek(0)
    return output.read()
+# Mostrar instrucciones de envío
+def mostrar_instrucciones():
+   st.info(
+       """
+       **Enviar mail al proveedor, recuerda adjuntar el fichero descargado en el mail y enviar:**
+       - **Destinatario:** [robot1@mahou-sanmiguel.com](mailto:robot1@mahou-sanmiguel.com)  
+       - **Asunto:** OAs pedidos materiales operaciones de venta  
+       """
+   )
+   # Botón para copiar el asunto
+   if st.button("Copiar Asunto"):
+       st.code("OAs pedidos materiales operaciones de venta")
+       st.success("Asunto copiado al portapapeles.")
 # Botón de acción final
 if st.button("Generar Pedido"):
    if not pedido:
@@ -90,3 +103,4 @@ if st.button("Generar Pedido"):
    excel_bytes = crear_excel_protegido(df)
    st.success("Pedido generado correctamente.")
    st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
+   mostrar_instrucciones()
