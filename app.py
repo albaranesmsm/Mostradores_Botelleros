@@ -4,11 +4,6 @@ import datetime
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.workbook.protection import WorkbookProtection
-import base64
-import sib_api_v3_sdk
-from sib_api_v3_sdk.rest import ApiException
-# --- CONFIGURACIÓN BREVO API ---
-api_key = st.secrets["BREVO"]["API_KEY"]
 # --- CONSTANTES ---
 COMPRADOR = "612539"
 OB_POR_PROVEEDOR = {
@@ -86,35 +81,12 @@ def crear_excel_protegido(df):
    wb.save(output)
    output.seek(0)
    return output.read()
-# Enviar correo con Brevo API
-def enviar_correo(destinatario, asunto, adjunto_bytes):
-   configuration = sib_api_v3_sdk.Configuration()
-   configuration.api_key['api-key'] = api_key
-   api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
-   adjunto_b64 = base64.b64encode(adjunto_bytes).decode()
-   email = sib_api_v3_sdk.SendSmtpEmail(
-       to=[{"email": destinatario}],
-       sender={"name": "App Pedidos", "email": "pedidosmaterialmsm@gmail.com"},  # Email verificado en Brevo
-       subject=asunto,
-       html_content="<p>Adjunto encontrarás el archivo de pedido.</p>",
-       attachment=[{
-           "content": adjunto_b64,
-           "name": "pedido_materiales.xlsx"
-       }]
-   )
-   try:
-       api_instance.send_transac_email(email)
-       return True
-   except ApiException as e:
-       st.error(f"Error al enviar correo: {e}")
-       return False
 # Botón de acción final
-if st.button("Generar y Enviar Pedido"):
+if st.button("Generar Pedido"):
    if not pedido:
        st.warning("No has seleccionado ninguna cantidad.")
        st.stop()
    df = pd.DataFrame(pedido)
    excel_bytes = crear_excel_protegido(df)
-   if enviar_correo("dvictoresg@mahou-sanmiguel.com", "Pedido de Materiales", excel_bytes):
-       st.success("Correo enviado correctamente.")
-       st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
+   st.success("Pedido generado correctamente.")
+   st.download_button("Descargar Pedido", data=excel_bytes, file_name="pedido_materiales.xlsx")
